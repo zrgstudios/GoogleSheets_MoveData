@@ -32,14 +32,17 @@ function checkCreateSpreadsheet(newdates)
   //Logger.log(40 + " " + founddates.toString())
 }
 
-function getNumRows(sheet)
+function getNumRows(sheet, range)
 {
-  var range = sheet.getDataRange();
-  var values = range.getValues();
+  Logger.log(37 + " " + range)
+
+  // https://stackoverflow.com/questions/6882104/faster-way-to-find-the-first-empty-row-in-a-google-sheet-column
+  var column = sheet.getRange(range)
+  var values = column.getValues();
   var row = 0;
-  for (var row=0; row < values.length; row++)
+  while (values[row][0] != "")
   {
-    if (!values[row].join("")) break;
+    row++;
   }
   return row;
 }
@@ -47,10 +50,15 @@ function getNumRows(sheet)
 function getDates()
 {
   var ss = setSpreadSheetByName('InsertData')
-  var alldates = ss.getRange(1, 1, 1000).getValues();
+  var range = "A2:A"
+  var alldates = ss.getRange(range).getValues().filter(String);
+
+  Logger.log(53 + " " + alldates.toString());
+  Logger.log(54 + " " + alldates.length.toString());
   var uniquevalues = [];
   
-  var rows = getNumRows(ss);
+  var rows = getNumRows(ss, range);
+  Logger.log(69 + " " + rows);
   for (i=0; i < rows; i ++)
   {
     var currdate = alldates[i];
@@ -62,58 +70,112 @@ function getDates()
       uniquevalues.push(yearmonth)
     }
   }
-  //Logger.log(uniquevalues.toString())
-  checkCreateSpreadsheet(uniquevalues)
-  return uniquevalues;
+  
+  if (uniquevalues.length > 0)
+  {
+    Logger.log(73 + " " + uniquevalues.toString())
+    checkCreateSpreadsheet(uniquevalues)
+  } 
+  //return uniquevalues;
 }
 
-function getRangeMinusHeaders(range)
+function getRangeMinusHeaders(sheet, range, rangenotation)
 {
-  var height = range.getHeight();
-  if (height == 1)
+  var startrow = range[0]
+  var startcol = range[1]
+  var maxrows = range[2]
+  var numcols = range[3]
+
+  var height = getNumRows(sheet, rangenotation)
+  Logger.log(88 + " " + height)
+  if (height === 0)
   {
     return null;
   }
-  var width = range.getWidth();
-  var sheet = range.getSheet();
-  // row, column, num rows, num columns (goes out to e)
-  return sheet.getRange(2, 1, height-1, 5);
-}
-
-function getFirstEmptyWholeRow(name)
-{
-  var ss = setSpreadSheetByName(name);
-  var rows = getNumRows(ss);
-  return (rows+1);
-}
-
-function MoveCells() 
-{
-  var basedata = setSpreadSheetByName('InsertData').getDataRange();
-
-  var headerlessrange = getRangeMinusHeaders(basedata)
-  var headerlessdata = headerlessrange.getValues();
-  Logger.log(headerlessdata.toString());
-  // Logger.log(Object.prototype.toString.call(headerlessdata));
-  for (var i = 0; i < headerlessdata.length; i++)
+  else
   {
-    // Determine which file the line goes into
-    var dateobj = new Date(headerlessdata[i][0]);
-    var yearmonth = Utilities.formatDate(dateobj, Session.getScriptTimeZone(), "yyyy-MM");
-    Logger.log(yearmonth)
-
-    var yearmonthday = Utilities.formatDate(dateobj, Session.getScriptTimeZone(), "yyyy-MM-dd");
-    var store = headerlessdata[i][1];
-    var category = headerlessdata[i][2];
-    var item = headerlessdata[i][3];
-    var cost = headerlessdata[i][4];
-
-    var targetsheet = setSpreadSheetByName(yearmonth);
-    var numrows = getNumRows(targetsheet) + 1;
-    
-    var data = [[yearmonthday, store, category, item, cost]]
-    Logger.log(numrows)
-    targetsheet.getRange(numrows, 1, 1, 5).setValues(data)
+    // row, column, num rows, num columns (goes out to e)
+    return sheet.getRange(startrow, startcol, height, numcols);
   }
-  headerlessrange.clearContent();
+  //var width = range.getWidth();
+  
+}
+
+function moveCells() 
+{
+  var sheet = setSpreadSheetByName('InsertData')
+
+  var headerlessrange = getRangeMinusHeaders(sheet, [2, 1, 1000, 5], "A2:A");
+  if (headerlessrange != null)
+  {
+    var headerlessdata = headerlessrange.getValues();
+    var filteredheaderless = headerlessdata.filter(String);
+    Logger.log(108 + " " + filteredheaderless);
+    // Logger.log(Object.prototype.toString.call(filteredheaderless));
+
+    for (var i = 0; i < filteredheaderless.length; i++)
+    {
+      // Determine which file the line goes into
+      var dateobj = new Date(filteredheaderless[i][0]);
+      var yearmonth = Utilities.formatDate(dateobj, Session.getScriptTimeZone(), "yyyy-MM");
+      var yearmonthday = Utilities.formatDate(dateobj, Session.getScriptTimeZone(), "yyyy-MM-dd");
+
+      var targetsheet = setSpreadSheetByName(yearmonth);
+      // add one to start on next line, rows + new line
+      var numrows = getNumRows(targetsheet, "A:A") + 1;
+
+      Logger.log(115 + " " + yearmonth)
+
+      var store = filteredheaderless[i][1];
+      var category = filteredheaderless[i][2];
+      var item = filteredheaderless[i][3];
+      var cost = filteredheaderless[i][4];
+      
+      var data = [[yearmonthday, store, category, item, cost]]
+      Logger.log(127 + " " + data)
+      targetsheet.getRange(numrows, 1, 1, 5).setValues(data)
+    }
+    headerlessrange.clearContent();
+  }
+
+  var incomeheaderlessrange = getRangeMinusHeaders(sheet, [2, 7, 1000, 3], "G2:G");
+  if (incomeheaderlessrange != null)
+  {
+    var incomeheaderlessdata = incomeheaderlessrange.getValues();
+    var filtereddata = incomeheaderlessdata.filter(String);
+    Logger.log(138 + " " + filtereddata);
+
+    for (var i = 0; i < filtereddata.length; i++)
+    {
+      var dateobj = new Date(filtereddata[i][0]);
+      var yearmonth = Utilities.formatDate(dateobj, Session.getScriptTimeZone(), "yyyy-MM");
+      var yearmonthday = Utilities.formatDate(dateobj, Session.getScriptTimeZone(), "yyyy-MM-dd");
+      var source = filtereddata[i][1]
+      var income = filtereddata[i][2]
+
+      var targetsheet = setSpreadSheetByName(yearmonth);
+      // add one to start on next line, rows + new line
+      var numrows = getNumRows(targetsheet, "G2:G") + 1;
+      
+      var data = [[yearmonthday, source, income]]
+      Logger.log(127 + " " + numrows)
+      targetsheet.getRange(numrows, 7, 1, 3).setValues(data)
+    }
+    incomeheaderlessrange.clearContent();
+  }
+}
+
+function setdatavalidation()
+{
+  var sheet = setSpreadSheetByName('InsertData')
+  var listrange = sheet.getRange("K1:K18")
+  var rule = SpreadsheetApp.newDataValidation().requireValueInRange(listrange, true).setAllowInvalid(false).build();
+  sheet.getRange("C2:C").setDataValidation(rule)
+}
+
+function main()
+{
+  getDates();
+  moveCells();
+  setdatavalidation();
 }
