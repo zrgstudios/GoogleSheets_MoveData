@@ -155,7 +155,7 @@ function moveCells()
 
       var targetsheet = setSpreadSheetByName(yearmonth);
       // add one to start on next line, rows + new line
-      var numrows = getNumRows(targetsheet, "G2:G") + 1;
+      var numrows = getNumRows(targetsheet, "G:G") + 1;
       
       var data = [[yearmonthday, source, income]]
       Logger.log(127 + " " + numrows)
